@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WA Gateway - Home</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">WA Gateway</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showTab('sendmessage')">Send Message</a></li>
+          <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showTab('BlassFile')">Blass File</a></li>
+          <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showTab('setting')">Setting</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <div id="mainPanel" style="display: none">
+        <h3 class="text-center text-success">WhatsApp Terhubung</h3>
+        <p class="text-center">Gunakan menu di atas untuk kirim pesan, upload file, dan lainnya.</p>
+      </div>
+
+      <div id="loginSection" class="row justify-content-center">
+        <div class="col-md-6 text-center">
+          <div class="card shadow-lg border-success mb-4">
+            <div class="card-header bg-success text-white">
+              <h4>Login WhatsApp</h4>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="loginMethod">Metode Login</label>
+                <select class="form-control" id="loginMethod" onchange="toggleLoginMethod()">
+                  <option value="qr">Scan QR</option>
+                  <option value="manual">Login via Nomor</option>
+                </select>
+              </div>
+              <div id="qrLogin" class="my-4">
+                <img id="qr" class="img-fluid rounded" width="250" height="250" />
+                <h5 id="status" class="text-warning mt-3">Menunggu QR Code...</h5>
+              </div>
+              <form id="manualLogin" class="mt-4" style="display: none" action="/api/login-number" method="post">
+                <div class="form-group">
+                  <label for="phoneLogin">Nomor WhatsApp</label>
+                  <input type="text" class="form-control" id="phoneLogin" name="phoneLogin" placeholder="62xxxx" required />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Login via Nomor</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="sendmessage" class="tab-content" style="display: none">
+        <h2 class="text-center">Kirim Pesan WhatsApp</h2>
+        <form id="sendMessageForm" action="/api/send-message" method="post">
+          <div class="form-group">
+            <label for="phoneNumber">Nomor Tujuan</label>
+            <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" placeholder="Masukkan nomor WhatsApp" required />
+          </div>
+          <div class="form-group">
+            <label for="message">Pesan</label>
+            <textarea class="form-control" id="message" name="message" rows="3" placeholder="Masukkan pesan" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Kirim Pesan</button>
+        </form>
+      </div>
+
+      <div id="BlassFile" class="tab-content" style="display: none">
+        <h3>Kirim Pesan Massal</h3>
+        <form action="/api/blass" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="fileInput">Pilih File Excel</label>
+            <input type="file" class="form-control" id="fileInput" name="fileInput" required />
+            <a href="/sampel.xlsx" class="btn btn-secondary mt-2" download>Download Sampel</a>
+          </div>
+          <div class="form-group">
+            <label for="messageInput">Pesan</label>
+            <textarea class="form-control" id="messageInput" name="message" rows="4" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Kirim</button>
+        </form>
+      </div>
+
+      <div id="setting" class="tab-content" style="display: none">
+        <h2>Setting</h2>
+        <form id="settingForm" action="/api/settings" method="post">
+          <div class="form-group">
+            <label for="defaultDelay">Delay Default (detik)</label>
+            <input type="number" class="form-control" id="defaultDelay" name="defaultDelay" min="0" />
+          </div>
+          <div class="form-group">
+            <label for="wmai">Watermark AI</label>
+            <input type="number" class="form-control" id="wmai" name="wmai" min="0" max="1" />
+          </div>
+          <button type="submit" class="btn btn-primary">Simpan</button>
+        </form>
+        <hr />
+        <p class="text-muted">kontak whatsapp: 0877-1666-6124</p>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      function toggleLoginMethod() {
+        const method = document.getElementById("loginMethod").value;
+        document.getElementById("qrLogin").style.display = method === "qr" ? "block" : "none";
+        document.getElementById("manualLogin").style.display = method === "manual" ? "block" : "none";
+      }
+
+      function showTab(tabId) {
+        const tabs = document.querySelectorAll(".tab-content");
+        tabs.forEach((tab) => (tab.style.display = "none"));
+        document.getElementById(tabId).style.display = "block";
+      }
+
+      const socket = new WebSocket("ws://" + location.host);
+      socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+        if (data.qrBase64) {
+          document.getElementById("qr").src = data.qrBase64;
+        }
+        if (data.status) {
+          document.getElementById("status").textContent = data.status;
+        }
+      };
+
+      fetch("/api/status")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status === "Tersambung") {
+            document.getElementById("loginSection").style.display = "none";
+            document.getElementById("mainPanel").style.display = "block";
+          } else {
+            document.getElementById("loginSection").style.display = "flex";
+            document.getElementById("mainPanel").style.display = "none";
+          }
+        });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        fetch("/api/settings")
+          .then((res) => res.json())
+          .then((data) => {
+            document.getElementById("defaultDelay").value = data.defaultDelay || 1;
+            document.getElementById("wmai").value = data.wmai || 0;
+          });
+
+        document.getElementById("settingForm").addEventListener("submit", function (e) {
+          e.preventDefault();
+          const defaultDelay = document.getElementById("defaultDelay").value;
+          const wmai = document.getElementById("wmai").value;
+
+          fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ defaultDelay, wmai }),
+          }).then((res) => {
+            if (res.ok) alert("Pengaturan disimpan!");
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
